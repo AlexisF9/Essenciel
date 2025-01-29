@@ -145,7 +145,7 @@ function App() {
 
   const fetchNearbyCities = async (cp: string) => {
     const username = import.meta.env.VITE_GEONAMES_USERNAME;
-    const url = `https://api.geonames.org/findNearbyPostalCodesJSON?formatted=true&postalcode=${cp}&country=FR&radius=${searchRadius}&username=${username}&style=full&maxRows=100`;
+    const url = `https://secure.geonames.org/findNearbyPostalCodesJSON?formatted=true&postalcode=${cp}&country=FR&radius=${searchRadius}&username=${username}&style=full&maxRows=100`;
 
     try {
       const response = await fetch(url);
