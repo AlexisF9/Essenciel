@@ -189,6 +189,7 @@ function App() {
 
   return (
     <>
+      <button onClick={getLocalisation}>Me geolocaliser</button>
       <div>
         <label htmlFor="tile-style">Changer le style de la map</label>
         <select
