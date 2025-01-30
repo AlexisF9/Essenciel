@@ -58,7 +58,7 @@ function App() {
   });
 
   const getLocalisation = () => {
-    if (navigator.geolocation) {
+    if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setLocation({
@@ -189,7 +189,12 @@ function App() {
 
   return (
     <>
-      <button onClick={getLocalisation}>Me geolocaliser</button>
+      <button
+        onClick={getLocalisation}
+        className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition"
+      >
+        Obtenir ma position
+      </button>
       <div>
         <label htmlFor="tile-style">Changer le style de la map</label>
         <select
