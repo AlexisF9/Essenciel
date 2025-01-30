@@ -17,14 +17,15 @@ import customMeIcon from "/me.png";
 
 function App() {
   const [data, setData] = useState<any>(null);
-  const [mapStyle, setMapStyle] = useState<string>("normal");
   const [searchRadius, setSearchRadius] = useState<number>(5);
   const [location, setLocation] = useState<{
     active: boolean;
     latitude: number;
     longitude: number;
+    name: string;
     error: string | null;
   }>({
+    name: "Paris",
     active: false,
     latitude: 48.864716,
     longitude: 2.349014,
@@ -38,11 +39,6 @@ function App() {
     latitude: null,
     longitude: null,
   });
-
-  //https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/api/
-  //https://www.openstreetmap.org/#map=12/45.1426/5.7349
-  //https://nominatim.openstreetmap.org/reverse?format=json&lat=45.185567253516&lon=5.75784886983
-  //https://www.geonames.org/export/ws-overview.html
 
   const customIcon = new L.Icon({
     iconUrl: customMarkerIcon,
@@ -61,13 +57,19 @@ function App() {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setLocation({
-            active: true,
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            error: null,
-          });
-          fetchCity(position.coords.latitude, position.coords.longitude);
+          if (
+            location.latitude !== position.coords.latitude &&
+            location.longitude !== position.coords.longitude
+          ) {
+            setLocation({
+              active: true,
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              name: "",
+              error: null,
+            });
+            fetchCity(position.coords.latitude, position.coords.longitude);
+          }
         },
         (error) => {
           setLocation((prevState) => ({
@@ -112,11 +114,6 @@ function App() {
     return null;
   };
 
-  const styleMapChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    e.preventDefault();
-    setMapStyle(e.target.value);
-  };
-
   const rayonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     e.preventDefault();
     setSearchRadius(parseInt(e.target.value));
@@ -135,6 +132,12 @@ function App() {
       const response = await fetch(url);
       const data = await response.json();
       if (data) {
+        setLocation((prev) => {
+          return {
+            ...prev,
+            name: data.name,
+          };
+        });
         setCityLocation({ latitude: data?.lat, longitude: data?.lon });
         fetchNearbyCities(data?.address?.postcode);
       }
@@ -188,68 +191,80 @@ function App() {
   };
 
   return (
-    <>
-      <button
-        onClick={getLocalisation}
-        className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition"
-      >
-        Obtenir ma position
-      </button>
-      <div>
-        <label htmlFor="tile-style">Changer le style de la map</label>
-        <select
-          name="map-style"
-          id="tile-style"
-          onChange={(e) => styleMapChange(e)}
-        >
-          <option value="normal">Normal</option>
-          <option value="light">Clair</option>
-          <option value="dark">Sombre</option>
-        </select>
-      </div>
-      <div>
-        <label htmlFor="search-radius">
-          Trouver un distributeur dans un rayon de
-        </label>
-        <select
-          name="search-radius"
-          id="ssearch-radius"
-          onChange={(e) => rayonChange(e)}
-        >
-          <option value={5}>5km</option>
-          <option value={10}>10km</option>
-          <option value={20}>20km</option>
-        </select>
+    <div className="min-h-screen flex flex-col">
+      <header className="bg-neutral-800 text-white p-10">
+        <h1 className="text-2xl">Essenciel</h1>
+      </header>
+
+      <div className="flex flex-col justify-center items-center bg-stone-100 py-10 px-4">
+        <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 mb-4">
+          <button
+            onClick={getLocalisation}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition"
+          >
+            Obtenir ma position
+          </button>
+          {/*<p>ou</p>
+          <div className="flex flex-col">
+            <input
+              className="border border-black px-4 py-2 rounded-lg"
+              type="text"
+              name="city"
+              id="city"
+              placeholder="Votre commune"
+            />
+          </div> */}
+        </div>
+        <div>
+          <label htmlFor="search-radius">
+            Trouver un distributeur dans un rayon de
+          </label>
+          <select
+            name="search-radius"
+            id="ssearch-radius"
+            onChange={(e) => rayonChange(e)}
+          >
+            <option value={5}>5km</option>
+            <option value={10}>10km</option>
+            <option value={20}>20km</option>
+          </select>
+        </div>
       </div>
 
-      {bestPrice && (
-        <p>
-          {bestPrice.adresse} - {bestPrice.ville} {bestPrice.gazole_prix}
-        </p>
-      )}
+      <div className="py-10 px-4 flex flex-col gap-4">
+        {location.active && (
+          <div>
+            <h2 className="text-xl mb-2">Votre commune :</h2>
+            <p>{location.name}</p>
+          </div>
+        )}
+        {bestPrice && (
+          <div>
+            <h2 className="text-xl mb-2">
+              Le meilleur prix autour de vous est :
+            </h2>
+            <p>
+              {bestPrice.adresse} - {bestPrice.ville} {bestPrice.gazole_prix}
+            </p>
+          </div>
+        )}
+      </div>
 
-      <div className="h-[50rem]">
+      <div className="contents">
         <MapContainer
           center={[location.latitude, location.longitude]}
           zoom={12}
-          style={{ width: "100%", height: "100%" }}
+          style={{
+            width: "100%",
+            height: "100%",
+            flexGrow: 1,
+            minHeight: "30rem",
+          }}
         >
-          {mapStyle === "light" ? (
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
-            />
-          ) : mapStyle === "dark" ? (
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
-            />
-          ) : (
-            <TileLayer
-              url="https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey=58c26f71f4664526a0753cd77a570191"
-              attribution='Maps &copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-          )}
+          <TileLayer
+            url="https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey=58c26f71f4664526a0753cd77a570191"
+            attribution='Maps &copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
 
           <SetViewOnClick
             coords={[location.latitude, location.longitude] as LatLngExpression}
@@ -287,7 +302,7 @@ function App() {
             ))}
         </MapContainer>
       </div>
-    </>
+    </div>
   );
 }
 
