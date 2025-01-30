@@ -59,7 +59,7 @@ function App() {
 
   const getLocalisation = () => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.watchPosition(
+      navigator.geolocation.getCurrentPosition(
         (position) => {
           setLocation({
             active: true,
