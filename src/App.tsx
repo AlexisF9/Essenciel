@@ -18,27 +18,40 @@ import customMeIcon from "/me.png";
 function App() {
   const [data, setData] = useState<any>(null);
   const [searchRadius, setSearchRadius] = useState<number>(5);
-  const [location, setLocation] = useState<{
-    active: boolean;
-    latitude: number;
-    longitude: number;
-    name: string;
-    error: string | null;
-  }>({
-    name: "Paris",
-    active: false,
-    latitude: 48.864716,
-    longitude: 2.349014,
-    error: null,
-  });
 
   const [cityLocation, setCityLocation] = useState<{
     latitude: number | null;
     longitude: number | null;
+    name: string | null;
+    cp: string | null;
   }>({
     latitude: null,
     longitude: null,
+    name: null,
+    cp: null,
   });
+
+  const [inputCity, setInputCity] = useState<string>("");
+  const [searchCity, setSearchCity] = useState([]);
+
+  useEffect(() => {
+    findCity(inputCity);
+  }, [inputCity]);
+
+  const findCity = async (name: string) => {
+    const url = `https://geo.api.gouv.fr/communes?nom=${name}`;
+    if (name.replace(/[^a-zA-Z]/g, "").length > 3) {
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data) {
+          setSearchCity(data);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la recherche des villes :", error);
+      }
+    }
+  };
 
   const customIcon = new L.Icon({
     iconUrl: customMarkerIcon,
@@ -58,33 +71,26 @@ function App() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           if (
-            location.latitude !== position.coords.latitude &&
-            location.longitude !== position.coords.longitude
+            cityLocation.latitude !== position.coords.latitude &&
+            cityLocation.longitude !== position.coords.longitude
           ) {
-            setLocation({
-              active: true,
+            setCityLocation({
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
-              name: "",
-              error: null,
+              name: null,
+              cp: null,
             });
             fetchCity(position.coords.latitude, position.coords.longitude);
           }
         },
         (error) => {
-          setLocation((prevState) => ({
-            ...prevState,
-            active: false,
-            error: error.message,
-          }));
+          console.log(error.message);
         }
       );
     } else {
-      setLocation((prevState) => ({
-        ...prevState,
-        active: false,
-        error: "La géolocalisation n'est pas supportée par votre navigateur.",
-      }));
+      console.log(
+        "La géolocalisation n'est pas supportée par votre navigateur."
+      );
     }
   };
 
@@ -93,8 +99,8 @@ function App() {
   }, []);
 
   const bestPrice =
-    data?.results?.length > 0
-      ? data?.results
+    data?.length > 0
+      ? data
           ?.filter((el: { gazole_prix: number }) => el.gazole_prix)
           .reduce(
             (
@@ -120,8 +126,8 @@ function App() {
   };
 
   useEffect(() => {
-    if (location.active) {
-      fetchCity(location.latitude, location.longitude);
+    if (cityLocation.latitude && cityLocation.longitude) {
+      fetchCity(cityLocation.latitude, cityLocation.longitude);
     }
   }, [searchRadius]);
 
@@ -132,23 +138,25 @@ function App() {
       const response = await fetch(url);
       const data = await response.json();
       if (data) {
-        setLocation((prev) => {
-          return {
-            ...prev,
-            name: data.name,
-          };
+        setCityLocation({
+          name: data.name,
+          cp: data.address.postcode,
+          latitude: latitude,
+          longitude: longitude,
         });
-        setCityLocation({ latitude: data?.lat, longitude: data?.lon });
-        fetchNearbyCities(data?.address?.postcode);
+        fetchNearbyCities(latitude, longitude);
       }
     } catch (error) {
       console.error("Erreur lors de la récupération des villes proches", error);
     }
   };
 
-  const fetchNearbyCities = async (cp: string) => {
+  const fetchNearbyCities = async (
+    lat: string | number,
+    lon: string | number
+  ) => {
     const username = import.meta.env.VITE_GEONAMES_USERNAME;
-    const url = `https://secure.geonames.org/findNearbyPostalCodesJSON?formatted=true&postalcode=${cp}&country=FR&radius=${searchRadius}&username=${username}&style=full&maxRows=100`;
+    const url = `https://secure.geonames.org/findNearbyPostalCodesJSON?lat=${lat}&lng=${lon}&formatted=true&country=FR&radius=${searchRadius}&username=${username}&style=full&maxRows=100`;
 
     try {
       const response = await fetch(url);
@@ -161,18 +169,28 @@ function App() {
     }
   };
 
-  const fetchList = (cities: { placeName: string; postalCode: string }[]) => {
+  const fetchList = (cities: { placeName: string; adminName2: string }[]) => {
     if (cities?.length > 0) {
       const apiUrl =
         "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records";
 
       const whereClauses = cities.map(
-        (el) => `(ville="${el.placeName}" AND cp="${el.postalCode}")`
+        (el: { placeName: string }) => `(ville="${el.placeName}")`
       );
       const whereQuery = whereClauses.join("OR");
       const url = `${apiUrl}?where=${encodeURIComponent(
         whereQuery
       )}&limit=100&offset=0`;
+
+      const departments = cities.reduce(
+        (acc: any, item: { adminName2: string }) => {
+          if (!acc.includes(item.adminName2)) {
+            acc.push(item.adminName2);
+          }
+          return acc;
+        },
+        []
+      );
 
       fetch(url)
         .then((response) => {
@@ -182,11 +200,38 @@ function App() {
           return response.json();
         })
         .then((data) => {
-          setData(data);
+          const filteredData = data?.results.filter(
+            (res: { departement: string }) =>
+              departments.find((dep: string) => dep === res.departement)
+          );
+          setData(filteredData);
         })
         .catch((error) => {
           console.log(error);
         });
+    }
+  };
+
+  const getCoordsCity = async (name: string, cp: string) => {
+    setSearchCity([]);
+    setInputCity("");
+
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${name}%20${cp}`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data) {
+        setCityLocation({
+          name: name,
+          cp: cp,
+          latitude: data[0]?.lat,
+          longitude: data[0]?.lon,
+        });
+        fetchNearbyCities(data[0]?.lat, data[0]?.lon);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération des villes proches", error);
     }
   };
 
@@ -199,21 +244,46 @@ function App() {
       <div className="flex flex-col justify-center items-center bg-stone-100 py-10 px-4">
         <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 mb-4">
           <button
-            onClick={getLocalisation}
+            //onClick={getLocalisation}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition"
           >
             Obtenir ma position
           </button>
-          {/*<p>ou</p>
-          <div className="flex flex-col">
+          <p>ou</p>
+          <div className="flex flex-col relative">
             <input
               className="border border-black px-4 py-2 rounded-lg"
               type="text"
               name="city"
               id="city"
+              value={inputCity}
               placeholder="Votre commune"
+              onChange={(e) => setInputCity(e.target.value)}
             />
-          </div> */}
+            {searchCity?.length > 0 && (
+              <div className="absolute top-full bg-neutral-800 w-full text-white p-4 rounded-lg">
+                <ul className="flex flex-col gap-2">
+                  {searchCity.map(
+                    (
+                      el: { nom: string; codesPostaux: string[] },
+                      index: number
+                    ) => (
+                      <li key={index}>
+                        <button
+                          className="text-start"
+                          onClick={() =>
+                            getCoordsCity(el.nom, el.codesPostaux[0])
+                          }
+                        >
+                          {el.nom} ({el.codesPostaux[0]})
+                        </button>
+                      </li>
+                    )
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
         <div>
           <label htmlFor="search-radius">
@@ -232,10 +302,10 @@ function App() {
       </div>
 
       <div className="py-10 px-4 flex flex-col gap-4">
-        {location.active && (
+        {cityLocation.name && (
           <div>
             <h2 className="text-xl mb-2">Votre commune :</h2>
-            <p>{location.name}</p>
+            <p>{cityLocation.name}</p>
           </div>
         )}
         {bestPrice && (
@@ -250,28 +320,32 @@ function App() {
         )}
       </div>
 
-      <div className="contents">
-        <MapContainer
-          center={[location.latitude, location.longitude]}
-          zoom={12}
-          style={{
-            width: "100%",
-            height: "100%",
-            flexGrow: 1,
-            minHeight: "30rem",
-          }}
-        >
-          <TileLayer
-            url="https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey=58c26f71f4664526a0753cd77a570191"
-            attribution='Maps &copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
+      {cityLocation.latitude && cityLocation.longitude && (
+        <div className="contents">
+          <MapContainer
+            center={[cityLocation.latitude, cityLocation.longitude]}
+            zoom={12}
+            style={{
+              width: "100%",
+              height: "100%",
+              flexGrow: 1,
+              minHeight: "30rem",
+            }}
+          >
+            <TileLayer
+              url="https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey=58c26f71f4664526a0753cd77a570191"
+              attribution='Maps &copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
 
-          <SetViewOnClick
-            coords={[location.latitude, location.longitude] as LatLngExpression}
-          />
-          {location.active &&
-            cityLocation.latitude &&
-            cityLocation.longitude && (
+            <SetViewOnClick
+              coords={
+                [
+                  cityLocation.latitude,
+                  cityLocation.longitude,
+                ] as LatLngExpression
+              }
+            />
+            {cityLocation.latitude && cityLocation.longitude ? (
               <LayerGroup>
                 <Circle
                   center={[cityLocation.latitude, cityLocation.longitude]}
@@ -282,26 +356,29 @@ function App() {
                 <Marker
                   icon={customPersonIcon}
                   key={0}
-                  position={[location.latitude, location.longitude]}
+                  position={[cityLocation.latitude, cityLocation.longitude]}
                 >
                   <Popup>Votre position</Popup>
                 </Marker>
               </LayerGroup>
+            ) : (
+              <></>
             )}
-          {data &&
-            data?.results?.map((el: any, index: number) => (
-              <Marker
-                key={index + 1}
-                position={[el.geom.lat, el.geom.lon]}
-                icon={customIcon}
-              >
-                <Popup>
-                  {el.adresse} - {el.ville} ({el.gazole_prix})
-                </Popup>
-              </Marker>
-            ))}
-        </MapContainer>
-      </div>
+            {data &&
+              data?.map((el: any, index: number) => (
+                <Marker
+                  key={index + 1}
+                  position={[el.geom.lat, el.geom.lon]}
+                  icon={customIcon}
+                >
+                  <Popup>
+                    {el.adresse} - {el.ville} ({el.gazole_prix})
+                  </Popup>
+                </Marker>
+              ))}
+          </MapContainer>
+        </div>
+      )}
     </div>
   );
 }
