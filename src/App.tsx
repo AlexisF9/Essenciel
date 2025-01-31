@@ -334,7 +334,9 @@ function App() {
         <div className="py-10 px-4 flex flex-col gap-4">
           <div>
             <h2 className="text-xl mb-2">Votre commune :</h2>
-            <p>{cityLocation.name}</p>
+            <p>
+              {cityLocation.name} - {cityLocation.cp}
+            </p>
           </div>
         </div>
       )}
