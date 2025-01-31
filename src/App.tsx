@@ -34,6 +34,33 @@ function App() {
   const [inputCity, setInputCity] = useState<string>("");
   const [searchCity, setSearchCity] = useState([]);
 
+  const types = [
+    {
+      type: "gazole",
+      name: "Gazole",
+    },
+    {
+      type: "sp95",
+      name: "SP95",
+    },
+    {
+      type: "sp98",
+      name: "SP98",
+    },
+    {
+      type: "e10",
+      name: "E10",
+    },
+    {
+      type: "e85",
+      name: "E85",
+    },
+    {
+      type: "gplc",
+      name: "GPLc",
+    },
+  ];
+
   useEffect(() => {
     findCity(inputCity);
   }, [inputCity]);
@@ -98,21 +125,21 @@ function App() {
     getLocalisation();
   }, []);
 
-  const bestPrice =
-    data?.length > 0
-      ? data
-          ?.filter((el: { gazole_prix: number }) => el.gazole_prix)
-          .reduce(
-            (
-              minGazolePrice: { gazole_prix: number },
-              currentGazolePrice: { gazole_prix: number }
-            ) => {
-              return currentGazolePrice.gazole_prix < minGazolePrice.gazole_prix
-                ? currentGazolePrice
-                : minGazolePrice;
-            }
-          )
-      : null;
+  //const bestPrice =
+  //  data?.length > 0
+  //    ? data
+  //        ?.filter((el: { gazole_prix: number }) => el.gazole_prix)
+  //        .reduce(
+  //          (
+  //            minGazolePrice: { gazole_prix: number },
+  //            currentGazolePrice: { gazole_prix: number }
+  //          ) => {
+  //            return currentGazolePrice.gazole_prix < minGazolePrice.gazole_prix
+  //              ? currentGazolePrice
+  //              : minGazolePrice;
+  //          }
+  //        )
+  //    : null;
 
   const SetViewOnClick = ({ coords }: { coords: LatLngExpression }) => {
     const map = useMap();
@@ -244,7 +271,7 @@ function App() {
       <div className="flex flex-col justify-center items-center bg-stone-100 py-10 px-4">
         <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 mb-4">
           <button
-            //onClick={getLocalisation}
+            onClick={getLocalisation}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition"
           >
             Obtenir ma position
@@ -261,25 +288,27 @@ function App() {
               onChange={(e) => setInputCity(e.target.value)}
             />
             {searchCity?.length > 0 && (
-              <div className="absolute top-full bg-neutral-800 w-full text-white p-4 rounded-lg">
+              <div className="absolute top-full bg-neutral-800 w-full text-white p-4 rounded-lg z-9">
                 <ul className="flex flex-col gap-2">
-                  {searchCity.map(
-                    (
-                      el: { nom: string; codesPostaux: string[] },
-                      index: number
-                    ) => (
-                      <li key={index}>
-                        <button
-                          className="text-start"
-                          onClick={() =>
-                            getCoordsCity(el.nom, el.codesPostaux[0])
-                          }
-                        >
-                          {el.nom} ({el.codesPostaux[0]})
-                        </button>
-                      </li>
-                    )
-                  )}
+                  {searchCity
+                    .slice(0, 10)
+                    .map(
+                      (
+                        el: { nom: string; codesPostaux: string[] },
+                        index: number
+                      ) => (
+                        <li key={index}>
+                          <button
+                            className="text-start cursor-pointer"
+                            onClick={() =>
+                              getCoordsCity(el.nom, el.codesPostaux[0])
+                            }
+                          >
+                            {el.nom} ({el.codesPostaux[0]})
+                          </button>
+                        </li>
+                      )
+                    )}
                 </ul>
               </div>
             )}
@@ -296,29 +325,19 @@ function App() {
           >
             <option value={5}>5km</option>
             <option value={10}>10km</option>
-            <option value={20}>20km</option>
+            <option value={15}>15km</option>
           </select>
         </div>
       </div>
 
-      <div className="py-10 px-4 flex flex-col gap-4">
-        {cityLocation.name && (
+      {cityLocation.name && (
+        <div className="py-10 px-4 flex flex-col gap-4">
           <div>
             <h2 className="text-xl mb-2">Votre commune :</h2>
             <p>{cityLocation.name}</p>
           </div>
-        )}
-        {bestPrice && (
-          <div>
-            <h2 className="text-xl mb-2">
-              Le meilleur prix autour de vous est :
-            </h2>
-            <p>
-              {bestPrice.adresse} - {bestPrice.ville} {bestPrice.gazole_prix}
-            </p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {cityLocation.latitude && cityLocation.longitude && (
         <div className="contents">
@@ -330,6 +349,7 @@ function App() {
               height: "100%",
               flexGrow: 1,
               minHeight: "30rem",
+              zIndex: 1,
             }}
           >
             <TileLayer
@@ -372,7 +392,23 @@ function App() {
                   icon={customIcon}
                 >
                   <Popup>
-                    {el.adresse} - {el.ville} ({el.gazole_prix})
+                    <p className="font-semibold">
+                      {el.adresse} - {el.ville}
+                    </p>
+                    <ul className="flex flex-col gap-2">
+                      {types.map((element: { type: string; name: string }) => {
+                        const rupture = element.type + "_rupture_type";
+                        const prix = element.type + "_prix";
+
+                        return (
+                          el?.[rupture] !== "definitive" && (
+                            <li>
+                              {element.name} : {el?.[prix] ?? "rupture"}
+                            </li>
+                          )
+                        );
+                      })}
+                    </ul>
                   </Popup>
                 </Marker>
               ))}
