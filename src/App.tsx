@@ -272,7 +272,7 @@ function App() {
         <h1 className="text-2xl">Essenciel</h1>
       </header>
 
-      <div className="flex flex-col justify-center items-center bg-stone-100 py-10 px-4">
+      <div className="flex flex-col justify-center items-center  py-10 px-4">
         <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 mb-4">
           <button
             onClick={getLocalisation}
@@ -341,9 +341,9 @@ function App() {
         </div>
       )}
 
-      <div className="flex flex-col gap-10 p-4 lg:p-10 lg:flex-row">
+      <div className="flex flex-col lg:flex-row bg-stone-100">
         {cityLocation.name && (
-          <div className="flex flex-col gap-4 w-full lg:w-1/2">
+          <div className="flex flex-col gap-4 w-full lg:w-1/2 p-4 lg:p-10">
             <div>
               <h2 className="text-xl mb-2">Votre commune :</h2>
               <p>
