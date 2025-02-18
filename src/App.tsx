@@ -18,6 +18,8 @@ import customMeIcon from "/me.png";
 function App() {
   const [data, setData] = useState<any>(null);
   const [searchRadius, setSearchRadius] = useState<number>(5);
+  const [fullScreen, setFullScreen] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [cityLocation, setCityLocation] = useState<{
     latitude: number | null;
@@ -76,6 +78,7 @@ function App() {
         }
       } catch (error) {
         console.error("Erreur lors de la recherche des villes :", error);
+        setError("Erreur lors de la recherche des villes");
       }
     }
   };
@@ -125,21 +128,20 @@ function App() {
     getLocalisation();
   }, []);
 
-  //const bestPrice =
-  //  data?.length > 0
-  //    ? data
-  //        ?.filter((el: { gazole_prix: number }) => el.gazole_prix)
-  //        .reduce(
-  //          (
-  //            minGazolePrice: { gazole_prix: number },
-  //            currentGazolePrice: { gazole_prix: number }
-  //          ) => {
-  //            return currentGazolePrice.gazole_prix < minGazolePrice.gazole_prix
-  //              ? currentGazolePrice
-  //              : minGazolePrice;
-  //          }
-  //        )
-  //    : null;
+  const bestPrice = (fuelType: string) => {
+    if (!data || data.length === 0) return null;
+
+    return (
+      data.filter((el: any) => el[`${fuelType}_prix`])?.length > 0 &&
+      data
+        .filter((el: any) => el[`${fuelType}_prix`])
+        .reduce((minPrice: any, current: any) =>
+          current[`${fuelType}_prix`] < minPrice[`${fuelType}_prix`]
+            ? current
+            : minPrice
+        )
+    );
+  };
 
   const SetViewOnClick = ({ coords }: { coords: LatLngExpression }) => {
     const map = useMap();
@@ -193,6 +195,7 @@ function App() {
       }
     } catch (error) {
       console.error("Erreur lors de la récupération des villes proches", error);
+      setError("Erreur lors de la récupération des villes proches");
     }
   };
 
@@ -330,6 +333,13 @@ function App() {
         </div>
       </div>
 
+      {error && (
+        <div className="fixed top-px right-px p-4 size-fit rounded-lg bg-red-50">
+          <p className="text-sm text-red-600">{error}</p>
+          <button onClick={() => setError(null)}>Fermer</button>
+        </div>
+      )}
+
       {cityLocation.name && (
         <div className="py-10 px-4 flex flex-col gap-4">
           <div>
@@ -338,11 +348,47 @@ function App() {
               {cityLocation.name} - {cityLocation.cp}
             </p>
           </div>
+          {data && (
+            <div className="w-full">
+              <h2 className="text-xl mb-2">Les meilleurs prix :</h2>
+              <table>
+                <tbody className="text-sm">
+                  {types.map(
+                    (el: { type: string; name: string }, index: number) => {
+                      return (
+                        <tr key={index}>
+                          <th className="border border-stone-200 font-medium px-2.5 py-2 text-start">
+                            {el.name}
+                          </th>
+                          <td className="border border-stone-200 px-2.5 py-2 text-start">
+                            {bestPrice(el.type) &&
+                              `${bestPrice(el.type).adresse}, ${
+                                bestPrice(el.type)?.cp ?? null
+                              } ${bestPrice(el.type)?.ville ?? null} (${
+                                bestPrice(el.type)?.[`${el.type}_prix`]
+                              })`}
+                          </td>
+                        </tr>
+                      );
+                    }
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
       {cityLocation.latitude && cityLocation.longitude && (
-        <div className="contents">
+        <div className={`${fullScreen ? "fixed inset-0" : "contents"}`}>
+          {fullScreen ? (
+            <button onClick={() => setFullScreen(false)}>Enlever</button>
+          ) : (
+            <button onClick={() => setFullScreen(true)}>
+              Mettre en plein ecran
+            </button>
+          )}
+
           <MapContainer
             center={[cityLocation.latitude, cityLocation.longitude]}
             zoom={12}
@@ -398,18 +444,23 @@ function App() {
                       {el.adresse} - {el.ville}
                     </p>
                     <ul className="flex flex-col gap-2">
-                      {types.map((element: { type: string; name: string }) => {
-                        const rupture = element.type + "_rupture_type";
-                        const prix = element.type + "_prix";
+                      {types.map(
+                        (
+                          element: { type: string; name: string },
+                          index: number
+                        ) => {
+                          const rupture = element.type + "_rupture_type";
+                          const prix = element.type + "_prix";
 
-                        return (
-                          el?.[rupture] !== "definitive" && (
-                            <li>
-                              {element.name} : {el?.[prix] ?? "rupture"}
-                            </li>
-                          )
-                        );
-                      })}
+                          return (
+                            el?.[rupture] !== "definitive" && (
+                              <li key={index}>
+                                {element.name} : {el?.[prix] ?? "rupture"}
+                              </li>
+                            )
+                          );
+                        }
+                      )}
                     </ul>
                   </Popup>
                 </Marker>
