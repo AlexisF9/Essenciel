@@ -14,6 +14,7 @@ import "leaflet/dist/leaflet.css";
 import { LatLngExpression } from "leaflet";
 import customMarkerIcon from "/pin.png";
 import customMeIcon from "/me.png";
+import { Expand, Shrink } from "lucide-react";
 
 function App() {
   const [data, setData] = useState<any>(null);
@@ -317,7 +318,7 @@ function App() {
             )}
           </div>
         </div>
-        <div>
+        <div className="text-center">
           <label htmlFor="search-radius">
             Trouver un distributeur dans un rayon de
           </label>
@@ -340,63 +341,155 @@ function App() {
         </div>
       )}
 
-      {cityLocation.name && (
-        <div className="py-10 px-4 flex flex-col gap-4">
-          <div>
-            <h2 className="text-xl mb-2">Votre commune :</h2>
-            <p>
-              {cityLocation.name} - {cityLocation.cp}
-            </p>
-          </div>
-          {data && (
-            <div className="w-full">
-              <h2 className="text-xl mb-2">Les meilleurs prix :</h2>
-              <table>
-                <tbody className="text-sm">
-                  {types.map(
-                    (el: { type: string; name: string }, index: number) => {
-                      return (
-                        <tr key={index}>
-                          <th className="border border-stone-200 font-medium px-2.5 py-2 text-start">
-                            {el.name}
-                          </th>
-                          <td className="border border-stone-200 px-2.5 py-2 text-start">
-                            {bestPrice(el.type) &&
-                              `${bestPrice(el.type).adresse}, ${
-                                bestPrice(el.type)?.cp ?? null
-                              } ${bestPrice(el.type)?.ville ?? null} (${
-                                bestPrice(el.type)?.[`${el.type}_prix`]
-                              })`}
-                          </td>
-                        </tr>
-                      );
-                    }
-                  )}
-                </tbody>
-              </table>
+      <div className="flex flex-col gap-10 p-4 lg:p-10 lg:flex-row">
+        {cityLocation.name && (
+          <div className="flex flex-col gap-4 w-full lg:w-1/2">
+            <div>
+              <h2 className="text-xl mb-2">Votre commune :</h2>
+              <p>
+                {cityLocation.name} - {cityLocation.cp}
+              </p>
             </div>
-          )}
-        </div>
-      )}
+            {data && (
+              <div className="w-full">
+                <h2 className="text-xl mb-2">Les meilleurs prix :</h2>
+                <table>
+                  <tbody className="text-sm">
+                    {types.map(
+                      (el: { type: string; name: string }, index: number) => {
+                        return (
+                          <tr key={index}>
+                            <th className="border border-stone-200 font-medium px-2.5 py-2 text-start">
+                              {el.name}
+                            </th>
+                            <td className="border border-stone-200 px-2.5 py-2 text-start">
+                              {bestPrice(el.type)
+                                ? `${bestPrice(el.type).adresse}, ${
+                                    bestPrice(el.type)?.cp ?? null
+                                  } ${bestPrice(el.type)?.ville ?? null} (${
+                                    bestPrice(el.type)?.[`${el.type}_prix`]
+                                  })`
+                                : "Pas distribué dans cette zone"}
+                            </td>
+                          </tr>
+                        );
+                      }
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
-      {cityLocation.latitude && cityLocation.longitude && (
-        <div className={`${fullScreen ? "fixed inset-0" : "contents"}`}>
-          {fullScreen ? (
-            <button onClick={() => setFullScreen(false)}>Enlever</button>
-          ) : (
-            <button onClick={() => setFullScreen(true)}>
-              Mettre en plein ecran
-            </button>
-          )}
+        {cityLocation.latitude && cityLocation.longitude && (
+          <div className="w-full lg:w-1/2 relative">
+            <div className="absolute z-[2] top-4 right-4">
+              <button
+                className="cursor-pointer"
+                onClick={() => setFullScreen(true)}
+              >
+                <Expand />
+              </button>
+            </div>
 
+            <div className="h-full">
+              <MapContainer
+                className="w-full h-full min-h-[30rem] z-[1]"
+                center={[cityLocation.latitude, cityLocation.longitude]}
+                zoom={12}
+              >
+                <TileLayer
+                  url="https://tile.thunderforest.com/atlas/{z}/{x}/{y}.png?apikey=58c26f71f4664526a0753cd77a570191"
+                  attribution='Maps &copy; <a href="https://www.thunderforest.com/">Thunderforest</a>, Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+
+                <SetViewOnClick
+                  coords={
+                    [
+                      cityLocation.latitude,
+                      cityLocation.longitude,
+                    ] as LatLngExpression
+                  }
+                />
+                {cityLocation.latitude && cityLocation.longitude ? (
+                  <LayerGroup>
+                    <Circle
+                      center={[cityLocation.latitude, cityLocation.longitude]}
+                      fillColor="blue"
+                      fillOpacity={0.1}
+                      radius={searchRadius * 1000}
+                    />
+                    <Marker
+                      icon={customPersonIcon}
+                      key={0}
+                      position={[cityLocation.latitude, cityLocation.longitude]}
+                    >
+                      <Popup>Votre position</Popup>
+                    </Marker>
+                  </LayerGroup>
+                ) : (
+                  <></>
+                )}
+                {data &&
+                  data?.map((el: any, index: number) => (
+                    <Marker
+                      key={index + 1}
+                      position={[el.geom.lat, el.geom.lon]}
+                      icon={customIcon}
+                    >
+                      <Popup>
+                        <p className="font-semibold">
+                          {el.adresse} - {el.ville}
+                        </p>
+                        <ul className="flex flex-col gap-2">
+                          {types.map(
+                            (
+                              element: { type: string; name: string },
+                              index: number
+                            ) => {
+                              const rupture = element.type + "_rupture_type";
+                              const prix = element.type + "_prix";
+
+                              return (
+                                el?.[rupture] !== "definitive" && (
+                                  <li key={index}>
+                                    {element.name} : {el?.[prix] ?? "rupture"}
+                                  </li>
+                                )
+                              );
+                            }
+                          )}
+                        </ul>
+                      </Popup>
+                    </Marker>
+                  ))}
+              </MapContainer>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {cityLocation.latitude && cityLocation.longitude && fullScreen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 2,
+          }}
+        >
+          <button
+            className="fixed z-[3] top-4 right-4 cursor-pointer"
+            onClick={() => setFullScreen(false)}
+          >
+            <Shrink />
+          </button>
           <MapContainer
             center={[cityLocation.latitude, cityLocation.longitude]}
             zoom={12}
             style={{
               width: "100%",
-              height: "100%",
-              flexGrow: 1,
-              minHeight: "30rem",
+              height: "100vh",
               zIndex: 1,
             }}
           >
