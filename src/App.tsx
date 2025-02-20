@@ -268,22 +268,22 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-neutral-800 text-white p-10">
-        <h1 className="text-2xl">Essenciel</h1>
+      <header className="bg-slate-950 text-white px-10 pt-8">
+        <h1 className="text-2xl">essenciel</h1>
       </header>
 
-      <div className="flex flex-col justify-center items-center  py-10 px-4">
+      <div className="flex flex-col justify-center items-center py-8 px-4 bg-slate-950">
         <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 mb-4">
           <button
             onClick={getLocalisation}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition"
+            className="px-4 py-2 bg-amber-500 text-white rounded-lg shadow-md hover:bg-amber-600 transition"
           >
             Obtenir ma position
           </button>
-          <p>ou</p>
+          <p className="text-white">ou</p>
           <div className="flex flex-col relative">
             <input
-              className="border border-black px-4 py-2 rounded-lg"
+              className="border border-white text-white px-4 py-2 rounded-lg"
               type="text"
               name="city"
               id="city"
@@ -319,17 +319,24 @@ function App() {
           </div>
         </div>
         <div className="text-center">
-          <label htmlFor="search-radius">
+          <label htmlFor="search-radius" className="text-white">
             Trouver un distributeur dans un rayon de
           </label>
           <select
             name="search-radius"
             id="ssearch-radius"
+            className="text-white"
             onChange={(e) => rayonChange(e)}
           >
-            <option value={5}>5km</option>
-            <option value={10}>10km</option>
-            <option value={15}>15km</option>
+            <option className="text-black" value={5}>
+              5km
+            </option>
+            <option className="text-black" value={10}>
+              10km
+            </option>
+            <option className="text-black" value={15}>
+              15km
+            </option>
           </select>
         </div>
       </div>
@@ -353,7 +360,7 @@ function App() {
             {data && (
               <div className="w-full">
                 <h2 className="text-xl mb-2">Les meilleurs prix :</h2>
-                <table>
+                <table className="w-full md:w-fit">
                   <tbody className="text-sm">
                     {types.map(
                       (el: { type: string; name: string }, index: number) => {
